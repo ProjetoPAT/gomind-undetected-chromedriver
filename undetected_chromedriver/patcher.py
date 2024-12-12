@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # this module is part of undetected_chromedriver
 
-from distutils.version import LooseVersion
+from packaging.version import Version as LooseVersion
 import io
 import json
 import logging
@@ -173,7 +173,7 @@ class Patcher(object):
             pass
 
         release = self.fetch_release_number()
-        self.version_main = release.version[0]
+        self.version_main = int(release.base_version.split(".")[0])
         self.version_full = release
         self.unzip_package(self.fetch_package())
         return self.patch()
@@ -235,16 +235,13 @@ class Patcher(object):
         :return: version string
         :rtype: LooseVersion
         """
-        # Endpoint for old versions of Chromedriver (114 and below)
         if self.is_old_chromedriver:
             path = f"/latest_release_{self.version_main}"
-            path = path.upper()
             logger.debug("getting release number from %s" % path)
             return LooseVersion(urlopen(self.url_repo + path).read().decode())
 
-        # Endpoint for new versions of Chromedriver (115+)
+        # Para novas versões do ChromeDriver (115+)
         if not self.version_main:
-            # Fetch the latest version
             path = "/last-known-good-versions-with-downloads.json"
             logger.debug("getting release number from %s" % path)
             with urlopen(self.url_repo + path) as conn:
@@ -253,7 +250,6 @@ class Patcher(object):
             last_versions = json.loads(response)
             return LooseVersion(last_versions["channels"]["Stable"]["version"])
 
-        # Fetch the latest minor version of the major version provided
         path = "/latest-versions-per-milestone-with-downloads.json"
         logger.debug("getting release number from %s" % path)
         with urlopen(self.url_repo + path) as conn:
@@ -277,11 +273,11 @@ class Patcher(object):
         """
         zip_name = f"chromedriver_{self.platform_name}.zip"
         if self.is_old_chromedriver:
-            download_url = "%s/%s/%s" % (self.url_repo, self.version_full.vstring, zip_name)
+            download_url = "%s/%s/%s" % (self.url_repo, str(self.version_full), zip_name)
         else:
             zip_name = zip_name.replace("_", "-", 1)
             download_url = "https://storage.googleapis.com/chrome-for-testing-public/%s/%s/%s"
-            download_url %= (self.version_full.vstring, self.platform_name, zip_name)
+            download_url %= (str(self.version_full), self.platform_name, zip_name)
 
         logger.debug("downloading from %s" % download_url)
         return urlretrieve(download_url)[0]
